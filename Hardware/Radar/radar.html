@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultrasonic Radar System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+      color: #00ff41;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: rgba(0, 20, 40, 0.8);
+      border: 2px solid #00ff41;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+      max-width: 900px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px #00ff41;
+      letter-spacing: 3px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #00cc33;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 30px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(145deg, #003300, #005500);
+      color: #00ff41;
+      border: 2px solid #00ff41;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+    }
+
+    button:hover {
+      background: linear-gradient(145deg, #005500, #007700);
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .radar-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      background: radial-gradient(circle at center, #001a00 0%, #000d00 100%);
+      border: 3px solid #00ff41;
+      border-radius: 10px;
+      box-shadow: 0 0 30px rgba(0, 255, 65, 0.4), inset 0 0 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .info-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .info-box {
+      background: rgba(0, 50, 20, 0.6);
+      border: 1px solid #00ff41;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #00cc33;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ff41;
+      text-shadow: 0 0 5px #00ff41;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0, 50, 20, 0.4);
+      border-radius: 5px;
+      border: 1px solid #00ff41;
+    }
+
+    .status.connected {
+      color: #00ff41;
+    }
+
+    .status.disconnected {
+      color: #ff4444;
+      border-color: #ff4444;
+    }
+
+    .blink {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .detected-objects {
+      margin-top: 20px;
+      max-height: 150px;
+      overflow-y: auto;
+      background: rgba(0, 50, 20, 0.4);
+      border: 1px solid #00ff41;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .detected-objects::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .detected-objects::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .detected-objects::-webkit-scrollbar-thumb {
+      background: #00ff41;
+      border-radius: 4px;
+    }
+
+    .object-entry {
+      padding: 8px;
+      margin: 5px 0;
+      background: rgba(0, 100, 40, 0.2);
+      border-left: 3px solid #00ff41;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚓ ULTRASONIC RADAR SYSTEM ⚓</h1>
+    <p class="subtitle">Maritime Object Detection & Tracking</p>
+    
+    <div class="controls">
+      <button id="connectBtn" onclick="connect()">🔌 Connect Serial</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>🔌 Disconnect</button>
+      <button onclick="clearDetections()">🗑️ Clear Log</button>
+    </div>
+
+    <div class="radar-container">
+      <canvas id="radar" width="600" height="600"></canvas>
+    </div>
+
+    <div class="info-panel">
+      <div class="info-box">
+        <div class="info-label">Current Angle</div>
+        <div class="info-value" id="angleDisplay">0°</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Distance</div>
+        <div class="info-value" id="distanceDisplay">-- cm</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Objects Detected</div>
+        <div class="info-value" id="objectCount">0</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Scan Rate</div>
+        <div class="info-value" id="scanRate">-- Hz</div>
+      </div>
+    </div>
+
+    <div class="status disconnected" id="status">
+      <span class="blink">⚠️ SYSTEM OFFLINE - AWAITING CONNECTION</span>
+    </div>
+
+    <div class="detected-objects" id="objectLog">
+      <div style="text-align: center; color: #00cc33; font-size: 12px;">
+        --- DETECTION LOG ---
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("radar");
+    const ctx = canvas.getContext("2d");
+    const centerX = 300;
+    const centerY = 300;
+    const maxRadius = 250;
+    
+    let port, reader, keepReading = true;
+    let detectedObjects = [];
+    let scanHistory = [];
+    let lastScanTime = Date.now();
+    let objectCounter = 0;
+
+    // Initialize radar display
+    function initRadar() {
+      drawRadar(90, 0);
+    }
+
+    function drawRadar(angle, distance) {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw background grid
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.1)";
+      ctx.lineWidth = 1;
+      
+      // Concentric circles with labels
+      const ranges = [50, 100, 150, 200];
+      for (let i = 0; i < ranges.length; i++) {
+        const r = (ranges[i] / 200) * maxRadius;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, Math.PI, 0, false);
+        ctx.stroke();
+        
+        // Distance labels
+        ctx.fillStyle = "rgba(0, 255, 65, 0.5)";
+        ctx.font = "10px Courier New";
+        ctx.fillText(ranges[i] + "cm", centerX + r - 20, centerY + 15);
+      }
+      
+      // Draw angle lines
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.1)";
+      for (let a = 0; a <= 180; a += 30) {
+        const rad = (a * Math.PI) / 180;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+          centerX + maxRadius * Math.cos(rad),
+          centerY - maxRadius * Math.sin(rad)
+        );
+        ctx.stroke();
+        
+        // Angle labels
+        if (a > 0 && a < 180) {
+          ctx.fillStyle = "rgba(0, 255, 65, 0.5)";
+          ctx.font = "10px Courier New";
+          ctx.fillText(
+            a + "°",
+            centerX + (maxRadius + 15) * Math.cos(rad) - 10,
+            centerY - (maxRadius + 15) * Math.sin(rad) + 5
+          );
+        }
+      }
+      
+      // Draw baseline
+      ctx.strokeStyle = "#00ff41";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX - maxRadius, centerY);
+      ctx.lineTo(centerX + maxRadius, centerY);
+      ctx.stroke();
+      
+      // Draw sweep line with gradient
+      const rad = (angle * Math.PI) / 180;
+      const gradient = ctx.createLinearGradient(
+        centerX, centerY,
+        centerX + maxRadius * Math.cos(rad),
+        centerY - maxRadius * Math.sin(rad)
+      );
+      gradient.addColorStop(0, "rgba(0, 255, 65, 0.8)");
+      gradient.addColorStop(1, "rgba(0, 255, 65, 0)");
+      
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(
+        centerX + maxRadius * Math.cos(rad),
+        centerY - maxRadius * Math.sin(rad)
+      );
+      ctx.stroke();
+      
+      // Draw sweep arc (fade effect)
+      for (let i = 0; i < 20; i++) {
+        const fadeAngle = angle - i * 2;
+        const fadeRad = (fadeAngle * Math.PI) / 180;
+        const alpha = 0.1 - (i * 0.005);
+        
+        ctx.strokeStyle = `rgba(0, 255, 65, ${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+          centerX + maxRadius * Math.cos(fadeRad),
+          centerY - maxRadius * Math.sin(fadeRad)
+        );
+        ctx.stroke();
+      }
+      
+      // Draw detected object
+      if (distance > 0 && distance <= 200) {
+        const d = (distance / 200) * maxRadius;
+        const objX = centerX + d * Math.cos(rad);
+        const objY = centerY - d * Math.sin(rad);
+        
+        // Pulsing effect
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#ff0000";
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(objX, objY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Outer ring
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(objX, objY, 15, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        
+        // Distance line
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(objX, objY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Add to detection history
+        addDetection(angle, distance);
+      }
+      
+      // Draw previous detections with fade
+      scanHistory.forEach((scan, idx) => {
+        const age = scanHistory.length - idx;
+        const alpha = Math.max(0, 1 - (age / 50));
+        const scanRad = (scan.angle * Math.PI) / 180;
+        const scanD = (scan.distance / 200) * maxRadius;
+        const scanX = centerX + scanD * Math.cos(scanRad);
+        const scanY = centerY - scanD * Math.sin(scanRad);
+        
+        ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(scanX, scanY, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      // Update displays
+      document.getElementById("angleDisplay").textContent = angle + "°";
+      document.getElementById("distanceDisplay").textContent = 
+        distance > 0 ? distance + " cm" : "-- cm";
+      
+      // Calculate scan rate
+      const now = Date.now();
+      const timeDiff = (now - lastScanTime) / 1000;
+      if (timeDiff > 0.5) {
+        const rate = (1 / timeDiff).toFixed(1);
+        document.getElementById("scanRate").textContent = rate + " Hz";
+        lastScanTime = now;
+      }
+    }
+
+    function addDetection(angle, distance) {
+      // Add to history
+      scanHistory.push({ angle, distance, time: Date.now() });
+      if (scanHistory.length > 100) {
+        scanHistory.shift();
+      }
+      
+      // Check if it's a new object (threshold based)
+      const isNew = !detectedObjects.some(obj => 
+        Math.abs(obj.angle - angle) < 5 && Math.abs(obj.distance - distance) < 10
+      );
+      
+      if (isNew && distance > 0) {
+        objectCounter++;
+        const detection = {
+          id: objectCounter,
+          angle: angle,
+          distance: distance,
+          time: new Date().toLocaleTimeString()
+        };
+        
+        detectedObjects.push(detection);
+        document.getElementById("objectCount").textContent = objectCounter;
+        
+        // Add to log
+        const logEntry = document.createElement("div");
+        logEntry.className = "object-entry";
+        logEntry.innerHTML = `
+          <strong>Object #${detection.id}</strong> | 
+          ${detection.time} | 
+          Angle: ${detection.angle}° | 
+          Distance: ${detection.distance}cm
+        `;
+        
+        const logContainer = document.getElementById("objectLog");
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+        
+        // Keep only last 50 entries
+        if (logContainer.children.length > 51) {
+          logContainer.removeChild(logContainer.children[1]);
+        }
+      }
+    }
+
+    async function connect() {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        
+        document.getElementById("connectBtn").disabled = true;
+        document.getElementById("disconnectBtn").disabled = false;
+        document.getElementById("status").className = "status connected";
+        document.getElementById("status").innerHTML = "✅ SYSTEM ONLINE - RADAR ACTIVE";
+        
+        keepReading = true;
+        readSerialData();
+      } catch (error) {
+        alert("Connection failed: " + error.message);
+      }
+    }
+
+    async function readSerialData() {
+      reader = port.readable.getReader();
+      let buffer = "";
+      
+      try {
+        while (keepReading) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += new TextDecoder().decode(value);
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+          
+          lines.forEach(line => {
+            const parts = line.trim().split(",");
+            if (parts.length === 2) {
+              let angle = parseInt(parts[0]);
+              let dist = parseInt(parts[1]);
+              
+              if (!isNaN(angle) && !isNaN(dist)) {
+                drawRadar(angle, dist);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Read error:", error);
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
+    async function disconnect() {
+      keepReading = false;
+      
+      if (reader) {
+        await reader.cancel();
+      }
+      
+      if (port) {
+        await port.close();
+      }
+      
+      document.getElementById("connectBtn").disabled = false;
+      document.getElementById("disconnectBtn").disabled = true;
+      document.getElementById("status").className = "status disconnected blink";
+      document.getElementById("status").innerHTML = "⚠️ SYSTEM OFFLINE - AWAITING CONNECTION";
+    }
+
+    function clearDetections() {
+      detectedObjects = [];
+      scanHistory = [];
+      objectCounter = 0;
+      document.getElementById("objectCount").textContent = "0";
+      
+      const logContainer = document.getElementById("objectLog");
+      logContainer.innerHTML = `
+        <div style="text-align: center; color: #00cc33; font-size: 12px;">
+          --- DETECTION LOG ---
+        </div>
+      `;
+    }
+
+    // Initialize on load
+    window.onload = initRadar;
+  </script>
+</body>
+</html>
